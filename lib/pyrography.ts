@@ -155,6 +155,7 @@ export function burnCanvasWithSmoldering(
     const progress = Math.min(1, elapsed / duration);
 
     if (progress >= 1) {
+      if (!ctx) return;
       ctx.clearRect(0, 0, w, h);
       ctx.drawImage(photoImg, 0, 0, w, h);
       applyPyrography(canvas, frameType);
@@ -236,6 +237,7 @@ export function burnCanvasWithSmoldering(
     smolderMask.splice(0, smolderMask.length, ...newMask);
 
     // Малювання
+    if (!ctx) return;
     ctx.clearRect(0, 0, w, h);
 
     // Фото під полотном
