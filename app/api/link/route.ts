@@ -1,4 +1,3 @@
-import { kv } from '@vercel/kv';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(request: NextRequest) {
@@ -12,10 +11,16 @@ export async function POST(request: NextRequest) {
     // Генеруємо короткий ID
     const shortId = Math.random().toString(36).substring(2, 8);
 
-    // Зберігаємо в Vercel KV (Redis) на 30 днів
-    await kv.set(`link:${shortId}`, dataHash, { ex: 60 * 60 * 24 * 30 });
-
-    return NextResponse.json({ shortId });
+    // Спробуємо зберегти в Vercel KV
+    try {
+      const { kv } = await import('@vercel/kv');
+      await kv.set(`link:${shortId}`, dataHash, { ex: 60 * 60 * 24 * 30 });
+      return NextResponse.json({ shortId });
+    } catch (kvError) {
+      console.error('KV error:', kvError);
+      // Fallback: повертаємо dataHash як ID (довший URL)
+      return NextResponse.json({ shortId: dataHash });
+    }
 
   } catch (error) {
     console.error('Save link error:', error);
@@ -32,13 +37,25 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'ID is required' }, { status: 400 });
     }
 
-    const dataHash = await kv.get(`link:${id}`);
-
-    if (!dataHash) {
-      return NextResponse.json({ error: 'Link not found or expired' }, { status: 404 });
+    // Якщо ID виглядає як dataHash (довгий), повертаємо його
+    if (id.length > 20) {
+      return NextResponse.json({ dataHash: id });
     }
 
-    return NextResponse.json({ dataHash });
+    // Інакше шукаємо в KV
+    try {
+      const { kv } = await import('@vercel/kv');
+      const dataHash = await kv.get(`link:${id}`);
+
+      if (!dataHash) {
+        return NextResponse.json({ error: 'Link not found or expired' }, { status: 404 });
+      }
+
+      return NextResponse.json({ dataHash });
+    } catch (kvError) {
+      console.error('KV error:', kvError);
+      return NextResponse.json({ error: 'KV not available' }, { status: 500 });
+    }
 
   } catch (error) {
     console.error('Get link error:', error);
