@@ -82,14 +82,18 @@ export default function Home() {
       // Створюємо довгий URL з даними в хеші
       const longUrl = `${window.location.origin}/v#${metaData}|${compressed}`;
 
-      // Скорочуємо через TinyURL (підтримує CORS)
-      const shortenerResponse = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(longUrl)}`);
+      // Скорочуємо через наш API endpoint
+      const shortenerResponse = await fetch('/api/shorten', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: longUrl })
+      });
 
       if (!shortenerResponse.ok) {
         throw new Error('URL shortener failed');
       }
 
-      const shortUrl = await shortenerResponse.text();
+      const { shortUrl } = await shortenerResponse.json();
       setShortUrl(shortUrl);
 
     } catch (error) {
