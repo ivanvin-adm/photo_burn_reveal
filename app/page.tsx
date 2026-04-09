@@ -67,33 +67,39 @@ export default function Home() {
       ctx.imageSmoothingQuality = 'high';
       ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
 
-      const imageData = canvas.toDataURL('image/jpeg', 0.92);
+      const imageData = canvas.toDataURL('image/jpeg', 0.85);
 
       // Створюємо метадані
       const duration = selectedEffect === 'slow' ? 10 : selectedEffect === 'fast' ? 3 : 6;
       const meta = `${duration}:${selectedEffect}:${selectedFrame}`;
       const messageData = message ? encodeURIComponent(message) : '';
 
-      // Зберігаємо всі дані на сервері
-      const saveResponse = await fetch('/api/save', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          data: JSON.stringify({
-            image: imageData,
-            meta,
-            message: messageData
-          })
-        })
-      });
-
-      if (!saveResponse.ok) {
-        throw new Error('Failed to save data');
+      // Стискаємо фото через LZ-String
+      const LZString = (window as any).LZString;
+      if (!LZString) {
+        throw new Error('LZ-String not loaded');
       }
 
-      const { id } = await saveResponse.json();
-      const shortUrl = `${window.location.origin}/v/${id}`;
-      setShortUrl(shortUrl);
+      const compressed = LZString.compressToEncodedURIComponent(imageData);
+      const metaData = messageData ? `${meta}|${messageData}` : meta;
+
+      // Створюємо URL з даними в хеші
+      const longUrl = `${window.location.origin}/v#${metaData}|${compressed}`;
+
+      // Скорочуємо через наш API
+      const shortenerResponse = await fetch('/api/shorten', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: longUrl })
+      });
+
+      if (!shortenerResponse.ok) {
+        // Якщо не вдалося скоротити, використовуємо довгий URL
+        setShortUrl(longUrl);
+      } else {
+        const { shortUrl } = await shortenerResponse.json();
+        setShortUrl(shortUrl || longUrl);
+      }
 
     } catch (error) {
       console.error('Generate error:', error);

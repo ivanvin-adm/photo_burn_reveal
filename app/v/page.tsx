@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { burnCanvasWithSmoldering } from '@/lib/pyrography';
 
-export default function ViewerPage({ params }: { params: Promise<{ id: string }> }) {
+export default function ViewerPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [data, setData] = useState<any>(null);
@@ -15,40 +15,60 @@ export default function ViewerPage({ params }: { params: Promise<{ id: string }>
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
-    async function loadData() {
-      try {
-        const { id } = await params;
+    const hash = window.location.hash;
+    if (!hash || hash.length < 5) {
+      setError(true);
+      setLoading(false);
+      return;
+    }
 
-        const response = await fetch(`/api/save?id=${id}`);
-        if (!response.ok) {
-          setError(true);
-          setLoading(false);
-          return;
+    try {
+      const hashData = hash.slice(1);
+      const parts = hashData.split('|');
+      const result: any = { duration: 6, effect: 'normal', frame: 'wood', message: '' };
+
+      if (parts.length >= 2) {
+        const meta = parts[0].split(':');
+        result.duration = parseInt(meta[0], 10) || 6;
+        result.effect = meta[1] || 'normal';
+        result.frame = meta[2] || 'wood';
+
+        let imageUrlCompressed;
+        if (parts.length >= 3) {
+          result.message = decodeURIComponent(parts[1]);
+          imageUrlCompressed = parts[2];
+        } else {
+          imageUrlCompressed = parts[1];
         }
 
-        const { data: savedData } = await response.json();
-        const parsed = JSON.parse(savedData);
+        let imageUrl;
+        const LZString = (window as any).LZString;
+        if (LZString) {
+          imageUrl = LZString.decompressFromEncodedURIComponent(imageUrlCompressed);
+        } else {
+          const compact = imageUrlCompressed.replace(/-/g, '+').replace(/_/g, '/');
+          const padded = compact + '='.repeat((4 - compact.length % 4) % 4);
+          imageUrl = atob(padded);
+        }
 
-        const [duration, effect, frame] = parsed.meta.split(':');
-        const result = {
-          imageUrl: parsed.image,
-          duration: parseInt(duration, 10),
-          effect,
-          frame,
-          message: parsed.message ? decodeURIComponent(parsed.message) : ''
-        };
-
-        setData(result);
-        setLoading(false);
-      } catch (e) {
-        console.error('Load error:', e);
+        if (imageUrl) {
+          result.imageUrl = imageUrl;
+          setData(result);
+          setLoading(false);
+        } else {
+          setError(true);
+          setLoading(false);
+        }
+      } else {
         setError(true);
         setLoading(false);
       }
+    } catch (e) {
+      console.error('Parse error:', e);
+      setError(true);
+      setLoading(false);
     }
-
-    loadData();
-  }, [params]);
+  }, []);
 
   useEffect(() => {
     if (!data || !canvasRef.current) return;
