@@ -68,36 +68,28 @@ export default function Home() {
       ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
 
       const imageData = canvas.toDataURL('image/jpeg', 0.92);
-      const base64Data = imageData.split(',')[1];
 
-      // Завантажуємо на ImgBB
-      const formData = new FormData();
-      formData.append('image', base64Data);
-
-      const imgbbResponse = await fetch('https://api.imgbb.com/1/upload?key=d2f1c2e6c4a8f7b3e9d5a1c8b4f6e2d9', {
-        method: 'POST',
-        body: formData
-      });
-
-      const imgbbData = await imgbbResponse.json();
-
-      if (!imgbbData.success) {
-        throw new Error('ImgBB upload failed');
-      }
-
-      const imageUrl = imgbbData.data.url;
-
-      // Створюємо короткий URL з метаданими
+      // Створюємо метадані
       const duration = selectedEffect === 'slow' ? 10 : selectedEffect === 'fast' ? 3 : 6;
       const meta = `${duration}:${selectedEffect}:${selectedFrame}`;
       const metaData = message ? `${meta}|${encodeURIComponent(message)}` : meta;
 
-      // Стискаємо URL
+      // Стискаємо фото
       const compressed = typeof (window as any).LZString !== 'undefined'
-        ? (window as any).LZString.compressToEncodedURIComponent(imageUrl)
-        : btoa(imageUrl).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+        ? (window as any).LZString.compressToEncodedURIComponent(imageData)
+        : btoa(imageData).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
 
-      const shortUrl = `${window.location.origin}/v#${metaData}|${compressed}`;
+      // Створюємо довгий URL з даними в хеші
+      const longUrl = `${window.location.origin}/v#${metaData}|${compressed}`;
+
+      // Скорочуємо через is.gd
+      const shortenerResponse = await fetch(`https://is.gd/create.php?format=simple&url=${encodeURIComponent(longUrl)}`);
+
+      if (!shortenerResponse.ok) {
+        throw new Error('URL shortener failed');
+      }
+
+      const shortUrl = await shortenerResponse.text();
       setShortUrl(shortUrl);
 
     } catch (error) {
