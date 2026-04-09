@@ -5,10 +5,10 @@ import path from 'path';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
 
     if (!id || !/^[a-z0-9]{6}$/.test(id)) {
       return NextResponse.json({ error: 'Invalid ID' }, { status: 400 });
