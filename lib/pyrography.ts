@@ -11,29 +11,31 @@ export function applyPyrography(
   const imageData = ctx.getImageData(0, 0, w, h);
   const data = imageData.data;
 
-  // Edge detection (Sobel operator)
+  // Покращений Sobel edge detection з більшою чутливістю
   const edges: number[][] = [];
+  const sobelX = [[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]];
+  const sobelY = [[-1, -2, -1], [0, 0, 0], [1, 2, 1]];
+
   for (let y = 1; y < h - 1; y++) {
     edges[y] = [];
     for (let x = 1; x < w - 1; x++) {
-      const idx = (y * w + x) * 4;
-      const gray = 0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2];
-
       let gx = 0, gy = 0;
+
       for (let dy = -1; dy <= 1; dy++) {
         for (let dx = -1; dx <= 1; dx++) {
           const i = ((y + dy) * w + (x + dx)) * 4;
-          const g = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-          if (dx !== 0) gx += g * dx;
-          if (dy !== 0) gy += g * dy;
+          const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+          gx += gray * sobelX[dy + 1][dx + 1];
+          gy += gray * sobelY[dy + 1][dx + 1];
         }
       }
+
       edges[y][x] = Math.sqrt(gx * gx + gy * gy);
     }
   }
 
   if (frameType === 'wood') {
-    // ПІРОГРАФІЯ - випалювання по дереву
+    // ПОКРАЩЕНА ПІРОГРАФІЯ - реалістичне випалювання по дереву
     for (let y = 0; y < h; y++) {
       for (let x = 0; x < w; x++) {
         const idx = (y * w + x) * 4;
@@ -47,26 +49,27 @@ export function applyPyrography(
         // Отримуємо силу краю
         const edge = edges[y]?.[x] || 0;
 
-        // Пірографія: темні лінії на світлому дереві
-        // Чим сильніший край, тим темніше випалювання
-        const burnIntensity = Math.min(1, edge / 80);
+        // Інвертуємо логіку: темні області фото = глибоке випалювання
+        const burnDepth = (255 - gray) / 255; // 0 = світло, 1 = темно
+        const edgeIntensity = Math.min(1, edge / 60);
 
-        // Базовий колір дерева (світлий)
-        const woodBase = 220;
+        // Базовий колір світлого дерева
+        const woodBase = 235;
 
-        // Випалена частина (темна)
-        const burnedValue = gray * 0.4; // Темні тони
+        // Випалена частина (темна) - чим темніше на фото, тим глибше випал
+        const burnedValue = 30 + gray * 0.2;
 
-        // Змішуємо: де є краї - темно, де немає - світло
-        const finalValue = woodBase * (1 - burnIntensity) + burnedValue * burnIntensity;
+        // Комбінуємо: краї завжди темні, площини залежать від яскравості
+        const finalValue = woodBase * (1 - burnDepth * 0.7 - edgeIntensity * 0.8) +
+                          burnedValue * (burnDepth * 0.7 + edgeIntensity * 0.8);
 
-        // Додаємо текстуру дерева (теплі тони)
-        data[idx] = Math.min(255, finalValue * 1.1 + 20);     // Червоний
-        data[idx + 1] = Math.min(255, finalValue * 0.95 + 10); // Зелений
-        data[idx + 2] = Math.min(255, finalValue * 0.7);       // Синій
+        // Теплі тони дерева з випаленням
+        data[idx] = Math.min(255, Math.max(0, finalValue * 1.15 + 15));     // Червоний
+        data[idx + 1] = Math.min(255, Math.max(0, finalValue * 1.0 + 5));   // Зелений
+        data[idx + 2] = Math.min(255, Math.max(0, finalValue * 0.75));      // Синій
 
-        // Додаємо шум для текстури дерева
-        const noise = (Math.random() - 0.5) * 15;
+        // Текстура дерева (менше шуму для чіткості)
+        const noise = (Math.random() - 0.5) * 8;
         data[idx] += noise;
         data[idx + 1] += noise;
         data[idx + 2] += noise;
@@ -101,7 +104,7 @@ export function applyPyrography(
   ctx.putImageData(imageData, 0, 0);
 }
 
-// Анімація тління полотна
+// Анімація горіння полотна знизу вверх
 export function burnCanvasWithSmoldering(
   canvas: HTMLCanvasElement,
   photoImg: HTMLImageElement,
@@ -134,25 +137,15 @@ export function burnCanvasWithSmoldering(
     type: 'fire' | 'smoke' | 'ember';
   }> = [];
 
-  // Маска тління (0 = полотно, 1 = згоріло)
-  const smolderMask: number[][] = [];
-  for (let i = 0; i < w; i++) {
-    smolderMask[i] = [];
-    for (let j = 0; j < h; j++) {
-      smolderMask[i][j] = 0;
-    }
-  }
-
-  // Стартові точки тління (знизу)
-  for (let i = 0; i < 10; i++) {
-    const x = Math.floor(Math.random() * w);
-    const y = Math.floor(h * 0.95);
-    smolderMask[x][y] = 1;
-  }
+  // Лінія вогню (починається знизу)
+  let fireLineY = h;
 
   function animate() {
     const elapsed = (Date.now() - startTime) / 1000;
     const progress = Math.min(1, elapsed / duration);
+
+    // Вогонь піднімається знизу вверх
+    fireLineY = h - (h * progress);
 
     if (progress >= 1) {
       if (!ctx) return;
@@ -163,133 +156,100 @@ export function burnCanvasWithSmoldering(
       return;
     }
 
-    // Поширення тління
-    const newMask: number[][] = [];
-    for (let i = 0; i < w; i++) {
-      newMask[i] = [...smolderMask[i]];
-    }
-
-    for (let i = 0; i < w; i++) {
-      for (let j = 0; j < h; j++) {
-        if (smolderMask[i][j] > 0.5) {
-          // Тління поширюється вгору та в боки
-          const dirs = [
-            [-1, -1], [0, -1], [1, -1],
-            [-1, 0], [1, 0],
-            [-1, 1], [0, 1], [1, 1]
-          ];
-
-          for (const [dx, dy] of dirs) {
-            const ni = i + dx;
-            const nj = j + dy;
-            if (ni >= 0 && ni < w && nj >= 0 && nj < h) {
-              // Більша ймовірність поширення вгору
-              const spreadChance = dy < 0 ? 0.4 : 0.2;
-              if (Math.random() < spreadChance) {
-                newMask[ni][nj] = Math.max(newMask[ni][nj], smolderMask[i][j] * 0.98);
-              }
-            }
-          }
-
-          // Створення частинок
-          if (Math.random() < 0.15) {
-            // Вогонь
-            particles.push({
-              x: i,
-              y: j,
-              vx: (Math.random() - 0.5) * 1,
-              vy: -Math.random() * 3 - 1,
-              life: 1,
-              size: Math.random() * 3 + 2,
-              type: 'fire'
-            });
-          }
-
-          if (Math.random() < 0.1) {
-            // Дим
-            particles.push({
-              x: i,
-              y: j,
-              vx: (Math.random() - 0.5) * 2,
-              vy: -Math.random() * 2 - 0.5,
-              life: 1,
-              size: Math.random() * 8 + 4,
-              type: 'smoke'
-            });
-          }
-
-          if (Math.random() < 0.05) {
-            // Іскри
-            particles.push({
-              x: i,
-              y: j,
-              vx: (Math.random() - 0.5) * 4,
-              vy: -Math.random() * 5 - 2,
-              life: 1,
-              size: Math.random() * 2 + 1,
-              type: 'ember'
-            });
-          }
-        }
-      }
-    }
-
-    smolderMask.splice(0, smolderMask.length, ...newMask);
-
-    // Малювання
     if (!ctx) return;
     ctx.clearRect(0, 0, w, h);
 
-    // Фото під полотном
-    ctx.globalAlpha = 0.2;
+    // Малюємо фото (поступово з'являється)
+    ctx.globalAlpha = progress * 0.3;
     ctx.drawImage(photoImg, 0, 0, w, h);
     ctx.globalAlpha = 1;
 
-    // Полотно з тлінням
-    const imageData = ctx.createImageData(w, h);
-    const data = imageData.data;
+    // Малюємо полотно (зверху до лінії вогню)
+    if (fireLineY > 0) {
+      ctx.fillStyle = grd;
+      ctx.fillRect(0, 0, w, fireLineY);
+    }
 
-    for (let i = 0; i < w; i++) {
-      for (let j = 0; j < h; j++) {
-        const idx = (j * w + i) * 4;
-        const smolder = smolderMask[i][j];
+    // Лінія вогню (товста смуга)
+    const fireHeight = 40;
+    const fireStart = Math.max(0, fireLineY - fireHeight);
+    const fireEnd = Math.min(h, fireLineY + fireHeight);
 
-        if (smolder < 0.3) {
-          // Червоне полотно
-          const noise = (Math.random() - 0.5) * 20;
-          data[idx] = 139 + noise;
-          data[idx + 1] = 0 + noise;
-          data[idx + 2] = 0 + noise;
-          data[idx + 3] = 255;
-        } else if (smolder < 0.7) {
-          // Тління (червоний жар)
-          const glow = smolder * 255;
-          data[idx] = Math.min(255, glow * 1.5);
-          data[idx + 1] = Math.min(255, glow * 0.3);
-          data[idx + 2] = 0;
-          data[idx + 3] = 255;
+    for (let y = fireStart; y < fireEnd; y++) {
+      const distFromCenter = Math.abs(y - fireLineY);
+      const intensity = 1 - (distFromCenter / fireHeight);
+
+      if (intensity > 0) {
+        const gradient = ctx.createLinearGradient(0, y, w, y);
+
+        if (distFromCenter < fireHeight / 3) {
+          // Яскравий центр вогню
+          gradient.addColorStop(0, `rgba(255, 255, 200, ${intensity})`);
+          gradient.addColorStop(0.5, `rgba(255, 150, 0, ${intensity})`);
+          gradient.addColorStop(1, `rgba(255, 255, 200, ${intensity})`);
         } else {
-          // Вугілля (чорне)
-          const ash = (1 - smolder) * 50;
-          data[idx] = ash;
-          data[idx + 1] = ash;
-          data[idx + 2] = ash;
-          data[idx + 3] = Math.max(0, 255 * (1 - smolder));
+          // Червоно-помаранчеві краї
+          gradient.addColorStop(0, `rgba(255, 100, 0, ${intensity * 0.8})`);
+          gradient.addColorStop(0.5, `rgba(200, 50, 0, ${intensity * 0.8})`);
+          gradient.addColorStop(1, `rgba(255, 100, 0, ${intensity * 0.8})`);
         }
+
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, y, w, 1);
       }
     }
 
-    ctx.putImageData(imageData, 0, 0);
+    // Створення частинок вздовж лінії вогню
+    if (Math.random() < 0.3) {
+      const x = Math.random() * w;
 
-    // Частинки
+      // Полум'я
+      particles.push({
+        x,
+        y: fireLineY,
+        vx: (Math.random() - 0.5) * 2,
+        vy: -Math.random() * 4 - 2,
+        life: 1,
+        size: Math.random() * 4 + 3,
+        type: 'fire'
+      });
+    }
+
+    if (Math.random() < 0.2) {
+      // Дим
+      particles.push({
+        x: Math.random() * w,
+        y: fireLineY,
+        vx: (Math.random() - 0.5) * 3,
+        vy: -Math.random() * 3 - 1,
+        life: 1,
+        size: Math.random() * 10 + 6,
+        type: 'smoke'
+      });
+    }
+
+    if (Math.random() < 0.15) {
+      // Іскри
+      particles.push({
+        x: Math.random() * w,
+        y: fireLineY,
+        vx: (Math.random() - 0.5) * 6,
+        vy: -Math.random() * 6 - 3,
+        life: 1,
+        size: Math.random() * 2 + 1,
+        type: 'ember'
+      });
+    }
+
+    // Оновлення та малювання частинок
     for (let i = particles.length - 1; i >= 0; i--) {
       const p = particles[i];
       p.x += p.vx;
       p.y += p.vy;
-      p.vy += 0.05; // Гравітація
-      p.life -= p.type === 'smoke' ? 0.01 : 0.02;
+      p.vy += 0.1; // Гравітація
+      p.life -= p.type === 'smoke' ? 0.008 : 0.015;
 
-      if (p.life <= 0 || p.y < -50) {
+      if (p.life <= 0 || p.y < -50 || p.y > h + 50) {
         particles.splice(i, 1);
         continue;
       }
@@ -298,15 +258,15 @@ export function burnCanvasWithSmoldering(
       ctx.globalAlpha = p.life;
 
       if (p.type === 'fire') {
-        const hue = 20 + Math.random() * 20;
-        ctx.fillStyle = `hsl(${hue}, 100%, 50%)`;
-        ctx.shadowBlur = 10;
+        const hue = 20 + Math.random() * 30;
+        ctx.fillStyle = `hsl(${hue}, 100%, 60%)`;
+        ctx.shadowBlur = 15;
         ctx.shadowColor = '#ff6600';
       } else if (p.type === 'smoke') {
-        ctx.fillStyle = `rgba(100, 100, 100, ${p.life * 0.5})`;
+        ctx.fillStyle = `rgba(80, 80, 80, ${p.life * 0.4})`;
       } else {
-        ctx.fillStyle = '#ffaa00';
-        ctx.shadowBlur = 5;
+        ctx.fillStyle = '#ffcc00';
+        ctx.shadowBlur = 8;
         ctx.shadowColor = '#ff6600';
       }
 
