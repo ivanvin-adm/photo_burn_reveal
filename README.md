@@ -1,36 +1,192 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🔥 Photo Burn Reveal - Next.js Edition
 
-## Getting Started
+Створіть посилання-сюрприз з фото під полотном, яке тліє та розкриває зображення з ефектом пірографії.
 
-First, run the development server:
+## ✨ Особливості
+
+### 📸 Максимальна якість фото
+- **768px** розмір (4x більше деталей)
+- **92% JPEG** якість (майже без втрат)
+- **WebP** підтримка
+
+### 🔥 Реалістичне тління
+- Червоний жар
+- Вугілля та попіл
+- Дим та іскри
+- Частинки вогню
+
+### 🎨 Пірографія (випалювання по дереву)
+- **Edge detection** (Sobel operator)
+- Темні контури на світлому дереві
+- Лазерне гравірування на металі (золото/срібло)
+
+### 🔗 Короткі посилання
+- Збереження на сервері
+- ID з 6 символів (наприклад: `/v/abc123`)
+- Без довгих URL в адресному рядку
+
+### 🎨 Опції
+- 3 кольори рамки: дерево, золото, срібло
+- 3 швидкості горіння: звичайне (6с), повільне (10с), швидке (3с)
+- Персональні повідомлення
+- Звук горіння
+- Countdown 3-2-1
+
+## 🚀 Запуск
 
 ```bash
+# Встановити залежності
+npm install
+
+# Запустити dev сервер
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+
+# Відкрити http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 📁 Структура
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```
+app/
+├── page.tsx              # Головна сторінка (завантаження фото)
+├── v/[id]/page.tsx       # Viewer (перегляд з тлінням)
+├── api/
+│   ├── upload/route.ts   # API для збереження фото
+│   └── photo/[id]/route.ts # API для отримання фото
+lib/
+└── pyrography.ts         # Пірографія та тління
+public/
+└── uploads/              # Збережені фото (створюється автоматично)
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 🎯 Як використовувати
 
-## Learn More
+1. Відкрий головну сторінку
+2. Завантаж фото
+3. Вибери рамку (дерево/золото/срібло)
+4. Напиши повідомлення
+5. Вибери швидкість горіння
+6. Натисни "Створити посилання"
+7. Отримаєш короткий URL: `http://localhost:3000/v/abc123`
+8. Надішли знайомій!
+9. Вона побачить countdown 3-2-1
+10. Натисне Fire 🔥
+11. Полотно тліє та розкриває фото з пірографією
 
-To learn more about Next.js, take a look at the following resources:
+## 🛠️ Технології
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- **Next.js 16** - React фреймворк
+- **TypeScript** - типізація
+- **Tailwind CSS** - стилі
+- **Canvas API** - малювання та ефекти
+- **File System API** - збереження фото
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 📝 API
 
-## Deploy on Vercel
+### POST /api/upload
+Зберігає фото та повертає короткий URL
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```json
+{
+  "imageData": "data:image/jpeg;base64,...",
+  "frame": "wood",
+  "effect": "normal",
+  "message": "Привіт!"
+}
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Відповідь:
+```json
+{
+  "success": true,
+  "shortUrl": "http://localhost:3000/v/abc123",
+  "id": "abc123"
+}
+```
+
+### GET /api/photo/[id]
+Отримує дані фото за ID
+
+Відповідь:
+```json
+{
+  "success": true,
+  "data": {
+    "imageData": "data:image/jpeg;base64,...",
+    "frame": "wood",
+    "effect": "normal",
+    "message": "Привіт!",
+    "createdAt": "2026-04-09T07:00:00.000Z"
+  }
+}
+```
+
+## 🎨 Пірографія
+
+Ефект випалювання по дереву реалізований через:
+
+1. **Edge Detection** - Sobel operator знаходить контури
+2. **Градієнти** - темні лінії на світлому фоні
+3. **Текстура** - шум для реалістичності
+4. **Тони** - теплі коричневі відтінки для дерева
+
+## 🔥 Тління
+
+Реалістична анімація тління:
+
+1. **Поширення** - вогонь поширюється вгору та в боки
+2. **Жар** - червоний градієнт на краях
+3. **Вугілля** - чорні згорілі ділянки
+4. **Частинки** - вогонь, дим, іскри
+5. **Фізика** - гравітація та затухання
+
+## 📦 Deployment
+
+### Vercel (рекомендовано)
+
+```bash
+npm install -g vercel
+vercel
+```
+
+Встанови змінну оточення:
+```
+NEXT_PUBLIC_BASE_URL=https://your-domain.vercel.app
+```
+
+### Docker
+
+```dockerfile
+FROM node:20-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm install
+COPY . .
+RUN npm run build
+EXPOSE 3000
+CMD ["npm", "start"]
+```
+
+## 🐛 Troubleshooting
+
+**Фото не завантажується:**
+- Перевір що папка `public/uploads` існує
+- Перевір права доступу
+
+**Посилання не працює:**
+- Перевір що `NEXT_PUBLIC_BASE_URL` встановлено
+- Перевір що файл `.json` існує в `public/uploads`
+
+**Тління не працює:**
+- Перевір консоль браузера
+- Перевір що Canvas підтримується
+
+## 📄 Ліцензія
+
+MIT
+
+---
+
+**Створено з ❤️ для особливих моментів**
+
+*Enhanced Edition - Максимальна якість для максимальних емоцій!*
