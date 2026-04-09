@@ -83,13 +83,22 @@ export default function Home() {
       const compressed = LZString.compressToEncodedURIComponent(imageData);
       const metaData = messageData ? `${meta}|${messageData}` : meta;
 
-      // Створюємо довгий URL з даними в хеші
-      const longUrl = `${window.location.origin}/v#${metaData}|${compressed}`;
+      // Створюємо hash з даними
+      const dataHash = `${metaData}|${compressed}`;
 
-      // Кодуємо довгий URL в base64 для короткого посилання
-      const encodedUrl = btoa(longUrl).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
-      const shortUrl = `${window.location.origin}/s/${encodedUrl}`;
+      // Зберігаємо на сервері через API
+      const response = await fetch('/api/link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dataHash })
+      });
 
+      if (!response.ok) {
+        throw new Error('Failed to create short link');
+      }
+
+      const { shortId } = await response.json();
+      const shortUrl = `${window.location.origin}/s/${shortId}`;
       setShortUrl(shortUrl);
 
     } catch (error) {
