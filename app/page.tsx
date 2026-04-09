@@ -72,28 +72,27 @@ export default function Home() {
       // Створюємо метадані
       const duration = selectedEffect === 'slow' ? 10 : selectedEffect === 'fast' ? 3 : 6;
       const meta = `${duration}:${selectedEffect}:${selectedFrame}`;
-      const metaData = message ? `${meta}|${encodeURIComponent(message)}` : meta;
+      const messageData = message ? encodeURIComponent(message) : '';
 
-      // Стискаємо фото
-      const compressed = typeof (window as any).LZString !== 'undefined'
-        ? (window as any).LZString.compressToEncodedURIComponent(imageData)
-        : btoa(imageData).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
-
-      // Створюємо довгий URL з даними в хеші
-      const longUrl = `${window.location.origin}/v#${metaData}|${compressed}`;
-
-      // Скорочуємо через наш API endpoint
-      const shortenerResponse = await fetch('/api/shorten', {
+      // Зберігаємо всі дані на сервері
+      const saveResponse = await fetch('/api/save', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: longUrl })
+        body: JSON.stringify({
+          data: JSON.stringify({
+            image: imageData,
+            meta,
+            message: messageData
+          })
+        })
       });
 
-      if (!shortenerResponse.ok) {
-        throw new Error('URL shortener failed');
+      if (!saveResponse.ok) {
+        throw new Error('Failed to save data');
       }
 
-      const { shortUrl } = await shortenerResponse.json();
+      const { id } = await saveResponse.json();
+      const shortUrl = `${window.location.origin}/v/${id}`;
       setShortUrl(shortUrl);
 
     } catch (error) {
