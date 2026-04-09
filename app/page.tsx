@@ -86,18 +86,10 @@ export default function Home() {
       // Створюємо довгий URL з даними в хеші
       const longUrl = `${window.location.origin}/v#${metaData}|${compressed}`;
 
-      // Створюємо короткий ID для посилання
-      const linkResponse = await fetch('/api/link', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ longUrl })
-      });
+      // Кодуємо довгий URL в base64 для короткого посилання
+      const encodedUrl = btoa(longUrl).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+      const shortUrl = `${window.location.origin}/s/${encodedUrl}`;
 
-      if (!linkResponse.ok) {
-        throw new Error('Failed to create short link');
-      }
-
-      const { shortUrl } = await linkResponse.json();
       setShortUrl(shortUrl);
 
     } catch (error) {

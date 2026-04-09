@@ -12,18 +12,12 @@ export default function ShortLinkPage({ params }: { params: Promise<{ id: string
       try {
         const { id } = await params;
 
-        const response = await fetch(`/api/link?id=${id}`);
-        if (!response.ok) {
-          setError(true);
-          setLoading(false);
-          return;
-        }
-
-        const { longUrl } = await response.json();
-        setLongUrl(longUrl);
+        // Декодуємо base64 URL
+        const decoded = atob(id.replace(/-/g, '+').replace(/_/g, '/'));
+        setLongUrl(decoded);
         setLoading(false);
       } catch (e) {
-        console.error('Load link error:', e);
+        console.error('Decode error:', e);
         setError(true);
         setLoading(false);
       }
