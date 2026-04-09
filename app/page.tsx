@@ -82,8 +82,8 @@ export default function Home() {
       // Створюємо довгий URL з даними в хеші
       const longUrl = `${window.location.origin}/v#${metaData}|${compressed}`;
 
-      // Скорочуємо через is.gd
-      const shortenerResponse = await fetch(`https://is.gd/create.php?format=simple&url=${encodeURIComponent(longUrl)}`);
+      // Скорочуємо через TinyURL (підтримує CORS)
+      const shortenerResponse = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(longUrl)}`);
 
       if (!shortenerResponse.ok) {
         throw new Error('URL shortener failed');
