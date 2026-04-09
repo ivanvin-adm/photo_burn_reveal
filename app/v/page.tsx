@@ -1,11 +1,9 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useParams } from 'next/navigation';
 import { burnCanvasWithSmoldering } from '@/lib/pyrography';
 
 export default function ViewerPage() {
-  const params = useParams();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [data, setData] = useState<any>(null);
@@ -13,28 +11,66 @@ export default function ViewerPage() {
   const [count, setCount] = useState(3);
   const [burning, setBurning] = useState(false);
   const [revealed, setRevealed] = useState(false);
-  
+
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
-    const id = params.id as string;
-    
-    fetch(`/api/photo/${id}`)
-      .then(res => res.json())
-      .then(result => {
-        if (result.success) {
-          setData(result.data);
+    const hash = window.location.hash;
+    if (!hash || hash.length < 5) {
+      setError(true);
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const hashData = hash.slice(1);
+      const parts = hashData.split('|');
+      const result: any = { duration: 6, effect: 'normal', frame: 'wood', message: '' };
+
+      if (parts.length >= 2) {
+        const meta = parts[0].split(':');
+        result.duration = parseInt(meta[0], 10) || 6;
+        result.effect = meta[1] || 'normal';
+        result.frame = meta[2] || 'wood';
+
+        let imageDataCompressed;
+        if (parts.length >= 3) {
+          result.message = decodeURIComponent(parts[1]);
+          imageDataCompressed = parts[2];
+        } else {
+          imageDataCompressed = parts[1];
+        }
+
+        let imageData;
+        if (imageDataCompressed.charAt(0) === '1') {
+          const LZString = (window as any).LZString;
+          if (LZString) {
+            imageData = LZString.decompressFromEncodedURIComponent(imageDataCompressed.slice(1));
+          }
+        } else {
+          const compact = imageDataCompressed.slice(1).replace(/-/g, '+').replace(/_/g, '/');
+          const padded = compact + '='.repeat((4 - compact.length % 4) % 4);
+          imageData = atob(padded);
+        }
+
+        if (imageData) {
+          result.imageData = imageData;
+          setData(result);
           setLoading(false);
         } else {
           setError(true);
           setLoading(false);
         }
-      })
-      .catch(() => {
+      } else {
         setError(true);
         setLoading(false);
-      });
-  }, [params.id]);
+      }
+    } catch (e) {
+      console.error('Parse error:', e);
+      setError(true);
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (!data || !canvasRef.current) return;
@@ -51,7 +87,6 @@ export default function ViewerPage() {
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
 
-      // Малюємо червоне полотно
       const grd = ctx.createLinearGradient(0, 0, 0, canvas.height);
       grd.addColorStop(0, '#8b0000');
       grd.addColorStop(0.5, '#a52a2a');
@@ -59,7 +94,6 @@ export default function ViewerPage() {
       ctx.fillStyle = grd;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // Countdown
       setShowCountdown(true);
       let counter = 3;
       const interval = setInterval(() => {
@@ -82,7 +116,7 @@ export default function ViewerPage() {
     const img = new Image();
     img.onload = () => {
       const duration = data.effect === 'slow' ? 10 : data.effect === 'fast' ? 3 : 6;
-      
+
       burnCanvasWithSmoldering(
         canvasRef.current!,
         img,
@@ -101,7 +135,7 @@ export default function ViewerPage() {
     return (
       <div className="min-h-screen bg-[#0a0806] text-[#f5e6d3] flex items-center justify-center">
         <div className="text-center">
-          <i className="fas fa-spinner fa-spin text-4xl mb-4"></i>
+          <div className="text-4xl mb-4">⏳</div>
           <p>Готуємо сюрприз...</p>
         </div>
       </div>
@@ -112,10 +146,10 @@ export default function ViewerPage() {
     return (
       <div className="min-h-screen bg-[#0a0806] text-[#f5e6d3] flex items-center justify-center">
         <div className="text-center space-y-4">
-          <i className="fas fa-circle-exclamation text-5xl text-[#ff6b1a]"></i>
+          <div className="text-5xl text-[#ff6b1a]">⚠️</div>
           <p className="text-lg">Посилання пошкоджене або фото не знайдено</p>
           <a href="/" className="inline-block bg-[#1a1410] border border-[#2d2419] px-6 py-3 rounded-lg hover:border-[#ff6b1a] transition-all">
-            <i className="fas fa-house mr-2"></i>На головну
+            🏠 На головну
           </a>
         </div>
       </div>
@@ -143,7 +177,7 @@ export default function ViewerPage() {
 
         <div className="text-center space-y-6">
           <div className={`inline-block p-6 rounded shadow-2xl ${
-            data.frame === 'gold' 
+            data.frame === 'gold'
               ? 'bg-gradient-to-br from-[#d4af37] via-[#b8941f] to-[#8b7220]'
               : data.frame === 'silver'
               ? 'bg-gradient-to-br from-[#c0c0c0] via-[#a8a8a8] to-[#808080]'
@@ -163,7 +197,7 @@ export default function ViewerPage() {
               onClick={handleFire}
               className="bg-gradient-to-b from-[#ff5722] to-[#bf360c] text-white px-16 py-5 rounded-lg font-black text-2xl tracking-widest uppercase shadow-lg hover:shadow-2xl transition-all animate-pulse"
             >
-              <i className="fas fa-fire mr-2"></i>Fire
+              🔥 Fire
             </button>
           )}
 
@@ -178,13 +212,13 @@ export default function ViewerPage() {
                 }}
                 className="bg-[#1a1410] border border-[#2d2419] px-6 py-3 rounded-lg text-sm font-semibold uppercase tracking-wider hover:border-[#ff6b1a] transition-all"
               >
-                <i className="fas fa-download mr-2"></i>Зберегти
+                💾 Зберегти
               </button>
               <a
                 href="/"
                 className="bg-[#1a1410] border border-[#2d2419] px-6 py-3 rounded-lg text-sm font-semibold uppercase tracking-wider hover:border-[#ff6b1a] transition-all"
               >
-                <i className="fas fa-plus mr-2"></i>Створити своє
+                ➕ Створити своє
               </a>
             </div>
           )}

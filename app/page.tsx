@@ -69,24 +69,21 @@ export default function Home() {
 
       const imageData = canvas.toDataURL('image/jpeg', 0.92);
 
-      const response = await fetch('/api/upload', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          imageData,
-          frame: selectedFrame,
-          effect: selectedEffect,
-          message
-        })
-      });
+      // Використовуємо hash-based підхід (без сервера)
+      const duration = selectedEffect === 'slow' ? 10 : selectedEffect === 'fast' ? 3 : 6;
+      const meta = `${duration}:${selectedEffect}:${selectedFrame}`;
 
-      const data = await response.json();
+      // Стискаємо дані
+      const compressed = typeof (window as any).LZString !== 'undefined'
+        ? '1' + (window as any).LZString.compressToEncodedURIComponent(imageData)
+        : '0' + btoa(imageData).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
 
-      if (data.success) {
-        setShortUrl(data.shortUrl);
-      } else {
-        alert('Помилка створення посилання');
-      }
+      const fullPayload = message
+        ? `${meta}|${encodeURIComponent(message)}|${compressed}`
+        : `${meta}|${compressed}`;
+
+      const shortUrl = `${window.location.origin}/v#${fullPayload}`;
+      setShortUrl(shortUrl);
 
     } catch (error) {
       console.error('Generate error:', error);
