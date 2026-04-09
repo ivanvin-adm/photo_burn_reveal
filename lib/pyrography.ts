@@ -1,4 +1,4 @@
-// Пірографія - ефект випалювання по дереву
+// Ефект олівцевого малюнка
 export function applyPyrography(
   canvas: HTMLCanvasElement,
   frameType: 'wood' | 'gold' | 'silver'
@@ -34,70 +34,42 @@ export function applyPyrography(
     }
   }
 
-  if (frameType === 'wood') {
-    // ПОКРАЩЕНА ПІРОГРАФІЯ - реалістичне випалювання по дереву
-    for (let y = 0; y < h; y++) {
-      for (let x = 0; x < w; x++) {
-        const idx = (y * w + x) * 4;
-        const r = data[idx];
-        const g = data[idx + 1];
-        const b = data[idx + 2];
+  // ОЛІВЦЕВИЙ МАЛЮНОК
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const idx = (y * w + x) * 4;
+      const r = data[idx];
+      const g = data[idx + 1];
+      const b = data[idx + 2];
 
-        // Конвертуємо в grayscale
-        const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+      // Конвертуємо в grayscale
+      const gray = 0.299 * r + 0.587 * g + 0.114 * b;
 
-        // Отримуємо силу краю
-        const edge = edges[y]?.[x] || 0;
+      // Отримуємо силу краю
+      const edge = edges[y]?.[x] || 0;
 
-        // Інвертуємо логіку: темні області фото = глибоке випалювання
-        const burnDepth = (255 - gray) / 255; // 0 = світло, 1 = темно
-        const edgeIntensity = Math.min(1, edge / 60);
+      // Інвертуємо: темні краї = олівцеві лінії
+      const edgeIntensity = Math.min(255, edge * 1.5);
 
-        // Базовий колір світлого дерева
-        const woodBase = 235;
+      // Базовий білий папір
+      const paperWhite = 250;
 
-        // Випалена частина (темна) - чим темніше на фото, тим глибше випал
-        const burnedValue = 30 + gray * 0.2;
+      // Олівцеві штрихи (темні лінії на світлому)
+      const pencilValue = paperWhite - (255 - gray) * 0.6 - edgeIntensity * 0.8;
 
-        // Комбінуємо: краї завжди темні, площини залежать від яскравості
-        const finalValue = woodBase * (1 - burnDepth * 0.7 - edgeIntensity * 0.8) +
-                          burnedValue * (burnDepth * 0.7 + edgeIntensity * 0.8);
+      // Легкий сіруватий відтінок паперу
+      const finalValue = Math.max(20, Math.min(255, pencilValue));
 
-        // Теплі тони дерева з випаленням
-        data[idx] = Math.min(255, Math.max(0, finalValue * 1.15 + 15));     // Червоний
-        data[idx + 1] = Math.min(255, Math.max(0, finalValue * 1.0 + 5));   // Зелений
-        data[idx + 2] = Math.min(255, Math.max(0, finalValue * 0.75));      // Синій
+      // Сіро-блакитний відтінок олівця
+      data[idx] = finalValue * 0.95;      // Червоний
+      data[idx + 1] = finalValue * 0.97;  // Зелений
+      data[idx + 2] = finalValue;         // Синій
 
-        // Текстура дерева (менше шуму для чіткості)
-        const noise = (Math.random() - 0.5) * 8;
-        data[idx] += noise;
-        data[idx + 1] += noise;
-        data[idx + 2] += noise;
-      }
-    }
-  } else {
-    // Лазерне гравірування на металі
-    for (let y = 0; y < h; y++) {
-      for (let x = 0; x < w; x++) {
-        const idx = (y * w + x) * 4;
-        const r = data[idx];
-        const g = data[idx + 1];
-        const b = data[idx + 2];
-        const gray = 0.299 * r + 0.587 * g + 0.114 * b;
-
-        const edge = edges[y]?.[x] || 0;
-        const engrave = Math.min(255, gray + edge * 0.5);
-
-        if (frameType === 'gold') {
-          data[idx] = Math.min(255, engrave * 1.1);
-          data[idx + 1] = Math.min(255, engrave * 0.95);
-          data[idx + 2] = Math.min(255, engrave * 0.7);
-        } else {
-          data[idx] = engrave;
-          data[idx + 1] = engrave;
-          data[idx + 2] = Math.min(255, engrave * 1.05);
-        }
-      }
+      // Текстура паперу (дуже легкий шум)
+      const noise = (Math.random() - 0.5) * 5;
+      data[idx] += noise;
+      data[idx + 1] += noise;
+      data[idx + 2] += noise;
     }
   }
 
