@@ -68,26 +68,41 @@ export default function Home() {
       ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
 
       const imageData = canvas.toDataURL('image/jpeg', 0.92);
+      const base64Data = imageData.split(',')[1];
 
-      // Використовуємо hash-based підхід (без сервера)
+      // Завантажуємо на ImgBB
+      const formData = new FormData();
+      formData.append('image', base64Data);
+
+      const imgbbResponse = await fetch('https://api.imgbb.com/1/upload?key=d2f1c2e6c4a8f7b3e9d5a1c8b4f6e2d9', {
+        method: 'POST',
+        body: formData
+      });
+
+      const imgbbData = await imgbbResponse.json();
+
+      if (!imgbbData.success) {
+        throw new Error('ImgBB upload failed');
+      }
+
+      const imageUrl = imgbbData.data.url;
+
+      // Створюємо короткий URL з метаданими
       const duration = selectedEffect === 'slow' ? 10 : selectedEffect === 'fast' ? 3 : 6;
       const meta = `${duration}:${selectedEffect}:${selectedFrame}`;
+      const metaData = message ? `${meta}|${encodeURIComponent(message)}` : meta;
 
-      // Стискаємо дані
+      // Стискаємо URL
       const compressed = typeof (window as any).LZString !== 'undefined'
-        ? '1' + (window as any).LZString.compressToEncodedURIComponent(imageData)
-        : '0' + btoa(imageData).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+        ? (window as any).LZString.compressToEncodedURIComponent(imageUrl)
+        : btoa(imageUrl).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
 
-      const fullPayload = message
-        ? `${meta}|${encodeURIComponent(message)}|${compressed}`
-        : `${meta}|${compressed}`;
-
-      const shortUrl = `${window.location.origin}/v#${fullPayload}`;
+      const shortUrl = `${window.location.origin}/v#${metaData}|${compressed}`;
       setShortUrl(shortUrl);
 
     } catch (error) {
       console.error('Generate error:', error);
-      alert('Помилка створення посилання');
+      alert('Помилка створення посилання. Спробуйте ще раз.');
     } finally {
       setLoading(false);
     }

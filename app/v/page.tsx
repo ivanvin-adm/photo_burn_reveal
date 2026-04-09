@@ -33,28 +33,26 @@ export default function ViewerPage() {
         result.effect = meta[1] || 'normal';
         result.frame = meta[2] || 'wood';
 
-        let imageDataCompressed;
+        let imageUrlCompressed;
         if (parts.length >= 3) {
           result.message = decodeURIComponent(parts[1]);
-          imageDataCompressed = parts[2];
+          imageUrlCompressed = parts[2];
         } else {
-          imageDataCompressed = parts[1];
+          imageUrlCompressed = parts[1];
         }
 
-        let imageData;
-        if (imageDataCompressed.charAt(0) === '1') {
-          const LZString = (window as any).LZString;
-          if (LZString) {
-            imageData = LZString.decompressFromEncodedURIComponent(imageDataCompressed.slice(1));
-          }
+        let imageUrl;
+        const LZString = (window as any).LZString;
+        if (LZString) {
+          imageUrl = LZString.decompressFromEncodedURIComponent(imageUrlCompressed);
         } else {
-          const compact = imageDataCompressed.slice(1).replace(/-/g, '+').replace(/_/g, '/');
+          const compact = imageUrlCompressed.replace(/-/g, '+').replace(/_/g, '/');
           const padded = compact + '='.repeat((4 - compact.length % 4) % 4);
-          imageData = atob(padded);
+          imageUrl = atob(padded);
         }
 
-        if (imageData) {
-          result.imageData = imageData;
+        if (imageUrl) {
+          result.imageUrl = imageUrl;
           setData(result);
           setLoading(false);
         } else {
@@ -105,7 +103,7 @@ export default function ViewerPage() {
         }
       }, 1000);
     };
-    img.src = data.imageData;
+    img.src = data.imageUrl;
   }, [data]);
 
   const handleFire = () => {
@@ -128,7 +126,7 @@ export default function ViewerPage() {
         }
       );
     };
-    img.src = data.imageData;
+    img.src = data.imageUrl;
   };
 
   if (loading) {
